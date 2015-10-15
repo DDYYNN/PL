@@ -205,23 +205,72 @@ struct
 
   let rec eval mem env e =
     match e with
-    | READ x -> 
+    | READ x -> (* get int from stdin *)
       let v = Num (read_int()) in
       let l = lookup_env_loc env x in
       (v, Mem.store mem l v)
-    | WRITE e ->
+    | WRITE e -> (* print int on stdout *)
       let (v, mem') = eval mem env e in
       let n = value_int v in
       let _ = print_endline (string_of_int n) in
       (v, mem')
-    | LETV (x, e1, e2) ->
+    | LETV (x, e1, e2) -> (*store e1 as x in memory and bind at environment *)
       let (v, mem') = eval mem env e1 in
       let (l, mem'') = Mem.alloc mem' in
       eval (Mem.store mem'' l v) (Env.bind env x (Addr l)) e2
-    | ASSIGN (x, e) ->
+    | LETF (id, id_list, e1, e2) ->
+                    eval () () e2
+    | ASSIGN (x, e) -> (* change value x in memory to eval e *)
       let (v, mem') = eval mem env e in
       let l = lookup_env_loc env x in
       (v, Mem.store mem' l v)
+    | NUM i -> (Num i, mem)
+    | TRUE -> (Bool true, mem)
+    | FALSE -> (Bool false, mem)
+    | UNIT -> (Unit, mem)
+(*    | VAR id -> (id, mem) (* *********************** should be revisit *) *)
+    | ADD (e1, e2) ->
+                    let (v1, mem') = eval mem env e1 in
+                    let (v2, mem'') = eval mem' env e2 in
+                    (Num ((value_int v1)+(value_int v2)), mem'')
+    | SUB (e1, e2) ->
+                    let (v1,mem') = eval mem env e1 in
+                    let (v2, mem'') = eval mem' env e2 in
+                    (Num((value_int v1) - (value_int v2)), mem'')
+    | MUL (e1, e2) ->
+                    let (v1,mem') = eval mem env e1 in
+                    let (v2, mem'') = eval mem' env e2 in
+                    (Num ((value_int v1) * (value_int v2)), mem'')
+    | DIV (e1, e2) ->
+                    let (v1,mem') = eval mem env e1 in
+                    let (v2, mem'') = eval mem' env e2 in
+                    (Num ((value_int v1) / (value_int v2)), mem'')
+    | EQUAL (e1, e2) ->
+                    let (v1, mem') = eval mem env e1 in
+                    let (v2, mem'') = eval mem' env e2 in
+                    if( v1 = v2 ) then (Bool true, mem'')
+                    else (Bool false, mem'')
+    | LESS (e1, e2) ->
+                    let (v1, mem') = eval mem env e1 in
+                    let (v2, mem'') = eval mem' env e2 in
+                    if( v1 < v2 ) then (Bool true, mem'')
+                    else (Bool false, mem'')
+    | NOT e ->
+                    let (v, mem') = eval mem env e in
+                    (match value_bool v with
+                    |true -> (Bool false, mem')
+                    |false -> (Bool true, mem'))
+    | IF (cond, e1, e2) ->
+                    let (con, mem') = eval mem env e in
+                    (match value_bool con with
+                    |true -> eval mem' env e1
+                    |false -> eval mem' env e2)
+    | WHILE (cond, e) ->
+                    let (con, mem') = eval mem env e in
+                    let (v, mem'') = eval mem' env e in
+                    (match value_bool con with
+                    |true -> eval mem'' env (WHILE (cond, e))
+                    |false -> (v, mem''))
     | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
 
   let run (mem, env, pgm) = 
