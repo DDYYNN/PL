@@ -172,36 +172,36 @@ struct
   let value_int v =
     match v with
     | Num n -> n
-    | _ -> raise (Error "TypeError : not int")
+    | _ -> raise (Error "TypeError : not int in value_int")
 
   let value_bool v =
     match v with
     | Bool b -> b
-    | _ -> raise (Error "TypeError : not bool")
+    | _ -> raise (Error "TypeError : not bool in value_bool")
 
   let value_unit v =
       match v with
       | Unit -> ()
-      | _ -> raise (Error "TypeError : not unit")
+      | _ -> raise (Error "TypeError : not unit in value_unit")
 
   let value_record v =
       match v with
       | Record r -> r
-      | _ -> raise (Error "TypeError : not record")
+      | _ -> raise (Error "TypeError : not record in value_record")
 
   let lookup_env_loc e x =
     try
       (match Env.lookup e x with
       | Addr l -> l
-      | Proc _ -> raise (Error "TypeError : not addr")) 
-    with Env.Not_bound -> raise (Error "Unbound")
+      | Proc _ -> raise (Error "TypeError : not addr in lookup_loc")) 
+    with Env.Not_bound -> raise (Error "Unbound in lookup_loc")
 
   let lookup_env_proc e f =
     try
       (match Env.lookup e f with
-      | Addr _ -> raise (Error "TypeError : not proc") 
+      | Addr _ -> raise (Error "TypeError : not proc in lookup_proc") 
       | Proc (id_list, exp, env) -> (id_list, exp, env))
-    with Env.Not_bound -> raise (Error "Unbound")
+    with Env.Not_bound -> raise (Error "Unbound in lookup_proc")
 
   let rec eval mem env e =
     match e with
@@ -218,8 +218,9 @@ struct
       let (v, mem') = eval mem env e1 in
       let (l, mem'') = Mem.alloc mem' in
       eval (Mem.store mem'' l v) (Env.bind env x (Addr l)) e2
-    | LETF (id, id_list, e1, e2) -> (* should revisit *)
-	eval mem (Env.bind env id (Proc (id_list, e1, env))) e2
+    | LETF (id, id_list, e1, e2) ->
+    	let env' = Env.bind env id (Proc (id_list, e1, env)) in
+	eval mem env' e2
     | ASSIGN (x, e) -> (* change value x in memory to eval e *)
       let (v, mem') = eval mem env e in
       let l = lookup_env_loc env x in
@@ -288,11 +289,11 @@ struct
     	(match li with
 	 | [] -> (Unit, mem)
 	 | _ ->
-	 	let bind (Record f) id l =
-		Record (fun x -> if (x=id) then l else f id) in
-		let empty = Record (fun x -> raise (Error "record not bound")) in
+	 	let bind (Record (f)) id l =
+			Record (fun x -> if x = id then l else f id) in
+		let empty = Record (fun x -> raise (Error "Unbound in record")) in
 		let rec loop l m env =
-		(match li with
+		(match l with
 		 | [] -> ([], m)
 		 | (id, exp)::t ->
 		 	let (v, m') = eval m env exp in
@@ -313,7 +314,7 @@ struct
 	(Mem.load m' (r id), m')
     | CALLV (id, e_list ) ->
     	let (id_list, e', env') = lookup_env_proc env id in
-	let rec loop env mem e_list =
+	let rec loop env mem e_list = (* exp list -> value list  *)
 		(match e_list with
 		 | [] -> ([], mem)
 		 | h::t ->
@@ -323,6 +324,8 @@ struct
 	let rec loop2 val_list id_list env mem =
 		(match (val_list, id_list) with
 		 | ([], []) -> (env, mem)
+		 | ([], h::t) -> raise (Error "InvalidArg in CALLV")
+		 | (h::t, []) -> raise (Error "InvalidArg in CALLV")
 		 | (val_h::val_t,id_h::id_t) ->
 			let (l, mem') = Mem.alloc mem in
 			let env' = Env.bind env id_h (Addr l) in
@@ -330,15 +333,18 @@ struct
 			loop2 val_t id_t env' mem'') in
 	let (val_list, mem') = loop env mem e_list in
 	let (env_r, mem_r) = loop2 val_list id_list env' mem' in
-	eval mem_r env_r e'
+	eval mem_r (Env.bind env_r id (Proc (id_list, e', env'))) e'
     | CALLR (id, id_list) ->
     	let (ref_list, e, env') = lookup_env_proc env id in
 	let rec loop env' ref_list id_list =
 		(match (ref_list, id_list) with
 		 | ([], []) -> env'
+		 | ([], h::t) -> raise (Error "InvalidArg")
+		 | (h::t, []) -> raise (Error "InvalidArg")
 		 | (ref_h::ref_t,id_h::id_t) ->
 		 	loop (Env.bind env' ref_h (Addr (lookup_env_loc env id_h))) ref_t id_t) in
-    	eval mem (loop env' ref_list id_list) e
+	let env_r = loop env' ref_list id_list in
+    	eval mem (Env.bind env_r id (Proc (ref_list, e, env'))) e
     | SEQ (e1, e2) ->
     	let (v1, mem') = eval mem env e1 in
 	let (v2, mem'') = eval mem' env e2 in
