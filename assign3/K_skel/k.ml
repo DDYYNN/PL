@@ -218,17 +218,24 @@ struct
       let (v, mem') = eval mem env e1 in
       let (l, mem'') = Mem.alloc mem' in
       eval (Mem.store mem'' l v) (Env.bind env x (Addr l)) e2
-    | LETF (id, id_list, e1, e2) ->
-                    eval () () e2
+    | LETF (id, id_list, e1, e2) -> (* should revisit *)
+	eval mem (Env.bind env id (Proc (id_list, e1, env))) e2
     | ASSIGN (x, e) -> (* change value x in memory to eval e *)
       let (v, mem') = eval mem env e in
       let l = lookup_env_loc env x in
       (v, Mem.store mem' l v)
+    | ASSIGNF (e1, x, e2) ->
+    	let (Record r, m') = eval mem env e1 in
+	let (v, m'') = eval mem env e2 in
+	let l = r x in
+	(v, Mem.store m'' l v)
     | NUM i -> (Num i, mem)
     | TRUE -> (Bool true, mem)
     | FALSE -> (Bool false, mem)
     | UNIT -> (Unit, mem)
-(*    | VAR id -> (id, mem) (* *********************** should be revisit *) *)
+    | VAR id -> (* ******** should be revisit  *)
+	let l = lookup_env_loc env id in
+	((Mem.load mem l),mem)
     | ADD (e1, e2) ->
                     let (v1, mem') = eval mem env e1 in
                     let (v2, mem'') = eval mem' env e2 in
@@ -248,20 +255,26 @@ struct
     | EQUAL (e1, e2) ->
                     let (v1, mem') = eval mem env e1 in
                     let (v2, mem'') = eval mem' env e2 in
-                    if( v1 = v2 ) then (Bool true, mem'')
-                    else (Bool false, mem'')
+		    (match (v1, v2) with
+		    | (Num i1, Num i2) -> (Bool (i1=i2), mem'')
+		    | (Bool b1, Bool b2) -> (Bool (b1=b2), mem'')
+		    | (Unit, Unit) -> (Bool true, mem'')
+		    | _-> (Bool false, mem''))
     | LESS (e1, e2) ->
                     let (v1, mem') = eval mem env e1 in
                     let (v2, mem'') = eval mem' env e2 in
-                    if( v1 < v2 ) then (Bool true, mem'')
-                    else (Bool false, mem'')
+		    (match (v1, v2) with
+		     | (Num i1, Num i2) ->
+		     	if(i1<i2) then (Bool true, mem'')
+			else (Bool false, mem'')
+		     | _ -> raise (Error "TypeError : not int (in LESS)"))
     | NOT e ->
                     let (v, mem') = eval mem env e in
                     (match value_bool v with
                     |true -> (Bool false, mem')
                     |false -> (Bool true, mem'))
     | IF (cond, e1, e2) ->
-                    let (con, mem') = eval mem env e in
+                    let (con, mem') = eval mem env cond in
                     (match value_bool con with
                     |true -> eval mem' env e1
                     |false -> eval mem' env e2)
@@ -270,7 +283,66 @@ struct
                     let (v, mem'') = eval mem' env e in
                     (match value_bool con with
                     |true -> eval mem'' env (WHILE (cond, e))
-                    |false -> (v, mem''))
+                    |false -> (Unit, mem''))
+    | RECORD li ->
+    	(match li with
+	 | [] -> (Unit, mem)
+	 | _ ->
+	 	let bind (Record f) id l =
+		Record (fun x -> if (x=id) then l else f id) in
+		let empty = Record (fun x -> raise (Error "record not bound")) in
+		let rec loop l m env =
+		(match li with
+		 | [] -> ([], m)
+		 | (id, exp)::t ->
+		 	let (v, m') = eval m env exp in
+			let (v', m'') = loop t m' env in
+			(v::v', m'')) in
+		let rec result id_list val_list mem r =
+		(match (id_list, val_list) with
+		 | ([], []) -> (r, mem)
+		 | (id_h::id_t,val_h::val_t) ->
+		 	let (l, mem') = Mem.alloc mem in
+			let mem'' = Mem.store mem' l val_h in
+			let r' = bind r id_h l in
+			result id_t val_t mem'' r') in
+		let (val_list, mem') = loop li mem env in
+		result (fst (List.split li)) val_list mem' empty)
+    | FIELD (e, id) ->
+    	let (Record r, m') = eval mem env e in
+	(Mem.load m' (r id), m')
+    | CALLV (id, e_list ) ->
+    	let (id_list, e', env') = lookup_env_proc env id in
+	let rec loop env mem e_list =
+		(match e_list with
+		 | [] -> ([], mem)
+		 | h::t ->
+		 	let (v, mem') = eval mem env h in
+			let (v', mem'') = loop env mem' t in
+			(v::v', mem'')) in
+	let rec loop2 val_list id_list env mem =
+		(match (val_list, id_list) with
+		 | ([], []) -> (env, mem)
+		 | (val_h::val_t,id_h::id_t) ->
+			let (l, mem') = Mem.alloc mem in
+			let env' = Env.bind env id_h (Addr l) in
+			let mem'' = Mem.store mem' l val_h in
+			loop2 val_t id_t env' mem'') in
+	let (val_list, mem') = loop env mem e_list in
+	let (env_r, mem_r) = loop2 val_list id_list env' mem' in
+	eval mem_r env_r e'
+    | CALLR (id, id_list) ->
+    	let (ref_list, e, env') = lookup_env_proc env id in
+	let rec loop env' ref_list id_list =
+		(match (ref_list, id_list) with
+		 | ([], []) -> env'
+		 | (ref_h::ref_t,id_h::id_t) ->
+		 	loop (Env.bind env' ref_h (Addr (lookup_env_loc env id_h))) ref_t id_t) in
+    	eval mem (loop env' ref_list id_list) e
+    | SEQ (e1, e2) ->
+    	let (v1, mem') = eval mem env e1 in
+	let (v2, mem'') = eval mem' env e2 in
+	(v2, mem'')
     | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
 
   let run (mem, env, pgm) = 
