@@ -290,7 +290,7 @@ struct
 	 | [] -> (Unit, mem)
 	 | _ ->
 	 	let bind (Record (f)) id l =
-			Record (fun x -> if x = id then l else f id) in
+			Record (fun x -> if x = id then l else f x) in
 		let empty = Record (fun x -> raise (Error "Unbound in record")) in
 		let rec loop l m env =
 		(match l with
