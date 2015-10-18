@@ -1,0 +1,84 @@
+(* type tree = unit | { Lsub := tree , value := int , Rsub := tree }   <- record? *)
+(* type queue = unit | { value := tree , next := queue *)
+let proc leaf (i) = { Lsub := unit, value := i, Rsub := unit }
+in
+
+let proc makeLtree (i, t) = { Lsub := t, value := i, Rsub := unit }
+in
+
+let proc makeRtree (i, t) = { Lsub := unit, value := i, Rsub := t }
+in
+
+let proc makeTree (i, l, r) = { Lsub := l, value := i, Rsub := r }
+in
+
+let proc isEmpty (t) = ( t = unit )
+in
+
+let proc rTree (t) = 
+	if(isEmpty(t)) then unit
+	else t.Rsub
+in
+
+let proc lTree (t) =
+	if(isEmpty(t)) then unit
+	else t.Lsub
+in
+
+let proc nodeVal (t) =
+	if(isEmpty(t)) then unit
+	else t.value
+in
+
+let proc dft (t) =
+	if(isEmpty (t)) then unit
+	else
+		(write(t.value);
+		dft(t.Lsub);
+		dft(t.Rsub))
+in
+
+let proc queue (t, n) = { value := t, next := n}
+in
+
+let proc push (q, t) =
+	if (t=unit) then q
+	else(
+			if (q=unit) then q := queue (t, unit)
+			else(
+				let temp := q.next in
+				push <temp, t>;
+				q.next := temp
+				)
+			)
+in
+
+let proc bft (t) =
+	if (isEmpty (t)) then unit
+	else(
+			let l := unit in
+			let r := unit in
+			let q := queue (t, unit) in
+			let b := true in
+			while(b) do (
+				if not (q=unit) then
+					(
+					t := q.value;
+					l := lTree(t);
+					r := rTree(t);
+					push <q, l>;
+					push <q, r>;
+					write (nodeVal (t));
+					q := q.next
+				)
+				else b := false
+			)
+
+	    )
+in
+
+let t1 := makeTree (1, leaf(2), leaf(3)) in 
+let t0 := makeTree (0, t1, leaf(4)) in 
+bft (t0);
+
+2015
