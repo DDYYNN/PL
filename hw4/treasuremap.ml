@@ -6,13 +6,31 @@ type map = End of treasure
 | Guide of string * map
 
 exception IMPOSSIBLE
+exception NOKEY
+exception TODO
+
+let emptyenv = fun x -> raise NOKEY
+
+type env = E of (string -> key)
+let bind (E env) name key = E (fun x -> if x = name then key else env x)
+let lookup (E env) name = env name
+
+let rec getKey: map -> env -> key =
+        fun map env ->
+                match map with
+                | End StarBox-> Bar
+                | End NameBox name -> lookup env name
+                | Branch (map1, map2) ->
+                                let k1 = getKey map1 env
+                                and k2 = getKey map2 env in
+                                (match k1 with
+                                | Bar -> raise IMPOSSIBLE
+                                | Node (a, b) -> if a = k2 then b else raise
+                                IMPOSSIBLE)
+                                | Guide (name, map') ->
+                                                let a = lookup env name
+                                                and b = getKey map' env in
+                                                Node (a, b)
 
 let getReady: map -> key list =
-        fun map ->
-                match map with
-                | End treasure ->
-                                raise IMPOSSIBLE (* TODO *) 
-                | Branch (m1, m2) ->
-                                raise IMPOSSIBLE (* TODO *)
-                | Guide (string, map) ->
-                                raise IMPOSSIBLE (* TODO *)
+        fun map -> raise TODO
