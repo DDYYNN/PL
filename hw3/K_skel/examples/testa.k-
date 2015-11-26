@@ -1,0 +1,19 @@
+let i := 0 in
+let n := 0 in
+let c := {a := 1, b := 1, c := 1} in
+(
+  read n;
+  if n < 1 then c.d := 1
+  else
+  (
+    n := n - 1;
+    while (i < n) do
+    (
+      c.c := c.a + c.b;
+      c.a := c.b;
+      c.b := c.c;
+      i := i + 1
+    )
+  );
+  write c.c
+)
