@@ -6,6 +6,8 @@ type token =
   | RARROW
   | RAISE
   | HANDLE
+  | LET
+  | IN
   | PLUS
   | MINUS
   | LP

@@ -13,13 +13,15 @@
                     ("fn", FN);
                     ("raise", RAISE);
                     ("handle", HANDLE);
+                    ("let", LET);
+                    ("in", IN);
                   ]
  let s2int = function "" -> raise (Lex_err("illegal number token"))
            | s -> if ('~' = String.get s 0) then
                    - (int_of_string(String.sub s 1 ((String.length s)-1)))
                    else int_of_string s
 
-# 23 "lexer.ml"
+# 25 "lexer.ml"
 let __ocaml_lex_tables = {
   Lexing.lex_base = 
    "\000\000\243\255\244\255\246\255\000\000\000\000\250\255\084\000\
@@ -167,74 +169,74 @@ let rec start lexbuf =
 and __ocaml_lex_start_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 33 "lexer.mll"
+# 35 "lexer.mll"
             ( start lexbuf )
-# 173 "lexer.ml"
+# 175 "lexer.ml"
 
   | 1 ->
-# 34 "lexer.mll"
+# 36 "lexer.mll"
                  ( start lexbuf)
-# 178 "lexer.ml"
+# 180 "lexer.ml"
 
   | 2 ->
-# 35 "lexer.mll"
+# 37 "lexer.mll"
                  ( start lexbuf)
-# 183 "lexer.ml"
+# 185 "lexer.ml"
 
   | 3 ->
-# 36 "lexer.mll"
+# 38 "lexer.mll"
              ( NUM (s2int(Lexing.lexeme lexbuf)) )
-# 188 "lexer.ml"
+# 190 "lexer.ml"
 
   | 4 ->
-# 37 "lexer.mll"
+# 39 "lexer.mll"
          ( let id = Lexing.lexeme lexbuf
            in try Hashtbl.find keyword_tbl id
               with _ -> ID id
          )
-# 196 "lexer.ml"
+# 198 "lexer.ml"
 
   | 5 ->
-# 41 "lexer.mll"
+# 43 "lexer.mll"
           ( verbose "eof"; EOF)
-# 201 "lexer.ml"
+# 203 "lexer.ml"
 
   | 6 ->
-# 42 "lexer.mll"
+# 44 "lexer.mll"
            ( comment_depth :=1;
              comment lexbuf;
              start lexbuf )
-# 208 "lexer.ml"
+# 210 "lexer.ml"
 
   | 7 ->
-# 45 "lexer.mll"
+# 47 "lexer.mll"
            ( verbose "=>"; RARROW)
-# 213 "lexer.ml"
+# 215 "lexer.ml"
 
   | 8 ->
-# 46 "lexer.mll"
+# 48 "lexer.mll"
           ( verbose "("; LP)
-# 218 "lexer.ml"
+# 220 "lexer.ml"
 
   | 9 ->
-# 47 "lexer.mll"
+# 49 "lexer.mll"
           ( verbose ")"; RP)
-# 223 "lexer.ml"
+# 225 "lexer.ml"
 
   | 10 ->
-# 48 "lexer.mll"
+# 50 "lexer.mll"
           ( verbose "="; EQ)
-# 228 "lexer.ml"
+# 230 "lexer.ml"
 
   | 11 ->
-# 49 "lexer.mll"
+# 51 "lexer.mll"
           ( verbose "-"; MINUS)
-# 233 "lexer.ml"
+# 235 "lexer.ml"
 
   | 12 ->
-# 50 "lexer.mll"
+# 52 "lexer.mll"
         (raise (Lex_err("illical token "^(Lexing.lexeme lexbuf))))
-# 238 "lexer.ml"
+# 240 "lexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; 
       __ocaml_lex_start_rec lexbuf __ocaml_lex_state
@@ -244,35 +246,35 @@ and comment lexbuf =
 and __ocaml_lex_comment_rec lexbuf __ocaml_lex_state =
   match Lexing.engine __ocaml_lex_tables __ocaml_lex_state lexbuf with
       | 0 ->
-# 53 "lexer.mll"
+# 55 "lexer.mll"
           (comment_depth := !comment_depth+1; comment lexbuf)
-# 250 "lexer.ml"
+# 252 "lexer.ml"
 
   | 1 ->
-# 54 "lexer.mll"
+# 56 "lexer.mll"
           (comment_depth := !comment_depth-1;
            if !comment_depth > 0 then comment lexbuf )
-# 256 "lexer.ml"
+# 258 "lexer.ml"
 
   | 2 ->
-# 56 "lexer.mll"
+# 58 "lexer.mll"
          (raise (Lex_err("Eof within comment")))
-# 261 "lexer.ml"
+# 263 "lexer.ml"
 
   | 3 ->
-# 57 "lexer.mll"
+# 59 "lexer.mll"
           ( comment lexbuf)
-# 266 "lexer.ml"
+# 268 "lexer.ml"
 
   | 4 ->
-# 58 "lexer.mll"
+# 60 "lexer.mll"
             ( comment lexbuf)
-# 271 "lexer.ml"
+# 273 "lexer.ml"
 
   | 5 ->
-# 59 "lexer.mll"
+# 61 "lexer.mll"
          (comment lexbuf)
-# 276 "lexer.ml"
+# 278 "lexer.ml"
 
   | __ocaml_lex_state -> lexbuf.Lexing.refill_buff lexbuf; 
       __ocaml_lex_comment_rec lexbuf __ocaml_lex_state
